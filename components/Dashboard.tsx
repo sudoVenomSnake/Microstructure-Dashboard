@@ -63,19 +63,19 @@ export default function Dashboard() {
   const spreadData = useMemo(
     () => hasEBBO ? deriveSpreadSeries(symState!.ebboHistory) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symState?.ebboHistory.length]
+    [symState?.latestEBBO?.ts]
   )
 
   const rollData = useMemo(
     () => hasEBBO ? deriveRollSpread(symState!.ebboHistory) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symState?.ebboHistory.length]
+    [symState?.latestEBBO?.ts]
   )
 
   const volData = useMemo(
     () => (symState?.candles30s.length ?? 0) >= 20 ? deriveGKVolatility(symState!.candles30s) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symState?.candles30s.length]
+    [symState?.latestEBBO?.ts]
   )
 
   const breadth = useMemo(() => {
