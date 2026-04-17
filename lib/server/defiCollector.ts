@@ -12,7 +12,7 @@ type Listener = (raw: string) => void
 
 const WS_URL        = 'wss://api.truemarkets.co/v1/defi/market'
 const RECONNECT_MS  = 4_000
-const BUFFER_SIZE   = 1_000   // keep last 1000 messages in memory
+const BUFFER_SIZE   = 10_000  // keep last 10k messages (~several hours of data)
 
 class DefiCollector {
   private ws: WebSocket | null = null

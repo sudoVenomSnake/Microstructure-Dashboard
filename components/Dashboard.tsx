@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useTrueMarkets } from '@/lib/useTrueMarkets'
-import { deriveSpreadSeries, deriveRollSpread, deriveGKVolatility, deriveCandles } from '@/lib/metrics'
+import { deriveSpreadSeries, deriveRollSpread, deriveGKVolatility } from '@/lib/metrics'
 
 import StatusBar       from './StatusBar'
 import OrderBook       from './OrderBook'
@@ -60,12 +60,6 @@ export default function Dashboard() {
   const symState = sym ? state[sym] : undefined
   const hasEBBO  = (symState?.ebboHistory.length ?? 0) > 0
 
-  const candles = useMemo(
-    () => hasEBBO ? deriveCandles(symState!.ebboHistory) : [],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symState?.ebboHistory.length]
-  )
-
   const spreadData = useMemo(
     () => hasEBBO ? deriveSpreadSeries(symState!.ebboHistory) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,9 +73,9 @@ export default function Dashboard() {
   )
 
   const volData = useMemo(
-    () => candles.length >= 20 ? deriveGKVolatility(candles) : [],
+    () => (symState?.candles30s.length ?? 0) >= 20 ? deriveGKVolatility(symState!.candles30s) : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [candles.length]
+    [symState?.candles30s.length]
   )
 
   const breadth = useMemo(() => {
@@ -126,7 +120,12 @@ export default function Dashboard() {
 
         <Panel label="Price" accent="blue" className="col-span-3 row-span-1">
           {hasEBBO
-            ? <PriceChart ebboHistory={symState!.ebboHistory} />
+            ? <PriceChart
+                candles30s={symState!.candles30s}
+                candles1m={symState!.candles1m}
+                candles5m={symState!.candles5m}
+                latestEBBO={symState!.latestEBBO}
+              />
             : <NoData label="Price chart" />}
         </Panel>
 

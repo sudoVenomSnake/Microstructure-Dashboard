@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Asset,
+  CandleData,
   ConnectionStatus,
   DashboardState,
   EBBOSnapshot,
@@ -17,6 +18,7 @@ import {
 
 const MAX_EBBO_HISTORY  = 500
 const MAX_TRADE_HISTORY = 500
+const MAX_CANDLES       = 500   // per interval: 500×30s ≈ 4h, 500×1m ≈ 8h, 500×5m ≈ 41h
 const RECONNECT_DELAY   = 4_000
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -27,8 +29,53 @@ function n(s: string | undefined): number {
   return isNaN(v) ? 0 : v
 }
 
+function fmtBucket(ts: number): string {
+  return new Date(ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+/** Upsert a WS candle into a stored candle array (one entry per bucket). */
+function upsertCandle(candles: CandleData[], c: WsPriceCandle, bucketTs: number): CandleData[] {
+  const open  = n(c.open)
+  const high  = n(c.high)
+  const low   = n(c.low)
+  const close = n(c.close)
+  if (!close) return candles
+
+  const last = candles.at(-1)
+
+  if (last && last.ts === bucketTs) {
+    // Same period — merge: preserve open, expand high/low, update close
+    const merged: CandleData = {
+      ts:        bucketTs,
+      time:      last.time,
+      open:      last.open || open,
+      high:      Math.max(last.high, high),
+      low:       last.low > 0 ? Math.min(last.low, low) : low,
+      close,
+      isBull:    close >= (last.open || open),
+      isForming: true,
+    }
+    return [...candles.slice(0, -1), merged]
+  }
+
+  // New period — finalize previous candle, push new one
+  const prev  = last ? { ...last, isForming: false } : undefined
+  const entry: CandleData = {
+    ts:        bucketTs,
+    time:      fmtBucket(bucketTs),
+    open:      open || close,
+    high,
+    low:       low || close,
+    close,
+    isBull:    close >= (open || close),
+    isForming: true,
+  }
+  const arr = prev ? [...candles.slice(0, -1), prev, entry] : [entry]
+  return arr.length > MAX_CANDLES ? arr.slice(-MAX_CANDLES) : arr
+}
+
 function emptySymbol(): SymbolState {
-  return { instrument: null, ebboHistory: [], tradeHistory: [], latestEBBO: null }
+  return { instrument: null, ebboHistory: [], tradeHistory: [], latestEBBO: null, candles30s: [], candles1m: [], candles5m: [] }
 }
 
 // ─── Parse one WsPriceCandle into our domain types ───────────────────────────
@@ -118,6 +165,13 @@ function applyMessage(state: DashboardState, raw: WsServerMessage): DashboardSta
           cur.tradeHistory = [...cur.tradeHistory.slice(-(MAX_TRADE_HISTORY - 1)), trade]
         }
       }
+      // Build per-interval candle arrays (one entry per bucket, not one per tick)
+      const b30 = Math.floor(ts / 30_000)  * 30_000
+      const b1m = Math.floor(ts / 60_000)  * 60_000
+      const b5m = Math.floor(ts / 300_000) * 300_000
+      cur.candles30s = upsertCandle(cur.candles30s, c30, b30)
+      cur.candles1m  = upsertCandle(cur.candles1m,  c30, b1m)
+      cur.candles5m  = upsertCandle(cur.candles5m,  c30, b5m)
     }
 
     const c24 = intervals['24h']

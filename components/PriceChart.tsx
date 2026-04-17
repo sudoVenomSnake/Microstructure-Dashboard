@@ -1,22 +1,18 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { EBBOSnapshot } from '@/lib/types'
-import { deriveCandles } from '@/lib/metrics'
+import { useState } from 'react'
+import { CandleData, EBBOSnapshot } from '@/lib/types'
 import CandlestickChart from './CandlestickChart'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Timeframe = '30s' | '1m' | '5m'
 
-const TIMEFRAME_MS: Record<Timeframe, number> = {
-  '30s': 30_000,
-  '1m':  60_000,
-  '5m':  300_000,
-}
-
 interface Props {
-  ebboHistory: EBBOSnapshot[]
+  candles30s:  CandleData[]
+  candles1m:   CandleData[]
+  candles5m:   CandleData[]
+  latestEBBO:  EBBOSnapshot | null
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,17 +24,13 @@ const fmtPrice = (n: number) =>
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function PriceChart({ ebboHistory }: Props) {
+export default function PriceChart({ candles30s, candles1m, candles5m, latestEBBO }: Props) {
   const [timeframe, setTimeframe] = useState<Timeframe>('30s')
 
-  const candles = useMemo(
-    () => deriveCandles(ebboHistory, TIMEFRAME_MS[timeframe]),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [ebboHistory.length, timeframe]
-  )
+  const candles = timeframe === '30s' ? candles30s : timeframe === '1m' ? candles1m : candles5m
 
   const hasData = candles.length > 0
-  const latest  = ebboHistory.at(-1)
+  const latest  = latestEBBO
 
   if (!hasData) {
     return (

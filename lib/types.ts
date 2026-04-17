@@ -64,6 +64,9 @@ export interface SymbolState {
   ebboHistory: EBBOSnapshot[]
   tradeHistory: TradeEvent[]
   latestEBBO:  EBBOSnapshot | null
+  candles30s:  CandleData[]   // one entry per 30-second period
+  candles1m:   CandleData[]   // one entry per 1-minute period
+  candles5m:   CandleData[]   // one entry per 5-minute period
 }
 
 export type DashboardState = Record<string, SymbolState>
